@@ -1,0 +1,39 @@
+# Папки и файлы Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Виртуальное окружение
+botenv/
+
+# Файлы окружения
+.env
+.env.local
+.env*.local
+
+# IDE и редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Логи и базы данных
+*.log
+*.sqlite3
+
+# Дистрибутивы и сборки
+/dist/
+/build/
+*.egg-info/
+*.egg
+
+# Кэш и временные файлы
+.cache/
+.pytest_cache/
+/tmp/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
