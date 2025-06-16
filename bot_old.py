@@ -38,35 +38,8 @@ async def cmd_start(message: types.Message):
 # Проверка свой ID
 @dp.message(Command("my_id"))
 async def cmd_my_id(message: types.Message):
-    await message.answer(f"Ваш ID: {message.from_user.id}\n")
-    
-# Полная проверка свой ID
-@dp.message(Command("my_id_full"))
-async def cmd_my_id(message: types.Message):
     await message.answer(f"Ваш ID: {message.from_user.id}\n"
                        f"Администраторы: {config.ADMIN_IDS}")
-    
-#Debug logs
-@dp.message(Command("debug_model"))
-async def cmd_debug_model(message: types.Message):
-    if message.from_user.id not in config.ADMIN_IDS:
-        return
-    
-    status = ai_model.get_status()
-    training_data = ai_model.get_training_data()
-    
-    response = (
-        f"Статус модели:\n"
-        f"Обучена: {status['is_trained']}\n"
-        f"Классов: {status['num_classes']}\n"
-        f"Слов в словаре: {status['vocab_size']}\n\n"
-        f"Примеры данных:\n"
-    )
-    
-    for text, label in zip(training_data['texts'][:5], training_data['labels'][:5]):
-        response += f"- '{text}' → '{label}'\n"
-    
-    await message.answer(response)
 
 # Проверка статуса модели
 @dp.message(Command("model_status"))
@@ -86,24 +59,23 @@ async def cmd_model_status(message: types.Message):
 # Предсказание с помощью модели
 @dp.message(Command("predict"))
 async def cmd_predict(message: types.Message):
-    text = message.text.split(maxsplit=1)
-    if len(text) < 2:
-        await message.answer("Формат: /predict ваш текст")
+    if not ai_model.is_trained:
+        await message.answer("Модель не обучена. Сначала обучите модель.")
         return
     
-    text = text[1].strip()
-    if not text:
-        await message.answer("Текст не может быть пустым")
+    # Более надежное извлечение текста для предсказания
+    command, *text_parts = message.text.split(maxsplit=1)
+    if not text_parts:
+        await message.answer("Пожалуйста, укажите текст для предсказания после команды /predict")
         return
     
+    text = text_parts[0].strip()
     try:
         prediction = ai_model.predict(text)
-        await message.answer(f"🔮 Предсказание для '{text}':\n\n{prediction}")
+        await message.answer(f"🔮 Предсказание для текста '{text}':\n\n{prediction}")
     except Exception as e:
-        logger.exception(f"Prediction failed for text: {text}")
-        await message.answer("Произошла внутренняя ошибка при обработке запроса")
-
-    
+        logger.error(f"Ошибка предсказания: {e}")
+        await message.answer("Произошла ошибка при обработке вашего запроса.")
 
 # Добавление данных для обучения
 @dp.message(Command("add_data"))
@@ -139,57 +111,19 @@ async def cmd_train_model(message: types.Message):
         return
     
     training_data = ai_model.get_training_data()
+    if len(training_data['texts']) < 10:
+        await message.answer(f"Недостаточно данных для обучения. Нужно минимум 10 примеров, сейчас {len(training_data['texts'])}.")
+        return
     
     await message.answer("Начинаю обучение модели...")
     
     try:
-        success = ai_model.train(training_data['texts'], training_data['labels'])
-        if success:
-            status = ai_model.get_status()
-            await message.answer(
-                "✅ Модель успешно обучена!\n"
-                f"• Примеров: {len(training_data['texts'])}\n"
-                f"• Классов: {status['num_classes']}\n"
-                f"• Слов в словаре: {status['vocab_size']}"
-            )
-        else:
-            await message.answer("❌ Ошибка при обучении модели. Добавьте больше разнообразных данных.")
+        ai_model.train(training_data['texts'], training_data['labels'])
+        ai_model.debug_model()  # дебаг строка
+        await message.answer("Модель успешно обучена!")
     except Exception as e:
-        logger.exception("Training failed")
-        await message.answer(f"Ошибка: {str(e)}")
-
-
-
-
-# @dp.message(Command("train_model"))
-# async def cmd_train_model(message: types.Message):
-#     if message.from_user.id not in config.ADMIN_IDS:
-#         await message.answer("Эта команда доступна только администраторам.")
-#         return
-    
-#     training_data = ai_model.get_training_data()
-#     if len(training_data['texts']) < 10:
-#         await message.answer(f"Недостаточно данных для обучения. Нужно минимум 10 примеров, сейчас {len(training_data['texts'])}.")
-#         return
-    
-#     await message.answer("Начинаю обучение модели...")
-    
-#     try:
-#         success = ai_model.train(training_data['texts'], training_data['labels'])
-#         if success:
-#             status = ai_model.get_status()
-#             await message.answer(
-#                 f"Модель успешно обучена!\n"
-#                 f"Классов: {status['num_classes']}\n"
-#                 f"Размер словаря: {status['vocab_size']}"
-#             )
-#         else:
-#             await message.answer("Ошибка при обучении модели. Проверьте логи.")
-#     except Exception as e:
-#         logger.exception("Training failed")
-#         await message.answer(f"Критическая ошибка при обучении: {e}")
-
-
+        logger.error(f"Ошибка обучения модели: {e}")
+        await message.answer(f"Произошла ошибка при обучении модели: {e}")
 
 # Обработка любого текста (можно использовать для чата с ИИ)
 @dp.message(F.text)
