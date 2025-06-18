@@ -29,8 +29,8 @@ def get_exit_keyboard():
 def get_chat_admin_keyboard():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Болтать"), KeyboardButton(text="Обучать")],
-            [KeyboardButton(text="Выход")]
+            [KeyboardButton(text="Общение"), KeyboardButton(text="Добавить (Чат)")],
+            [KeyboardButton(text="Обучать"), KeyboardButton(text="Выход")]
         ],
         resize_keyboard=True
     )
